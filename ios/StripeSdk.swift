@@ -274,8 +274,10 @@ class StripeSdk: RCTEventEmitter, STPBankSelectionViewControllerDelegate, UIAdap
                              rejecter reject: @escaping RCTPromiseRejectBlock) -> Void  {
         if let timeout = options["timeout"] as? Double {
             DispatchQueue.main.asyncAfter(deadline: .now() + timeout/1000) {
-                self.paymentSheetViewController?.dismiss(animated: true)
-                resolve(Errors.createError(ErrorType.Canceled, "The payment has timed out."))
+                if let paymentSheetViewController = self.paymentSheetViewController {
+                    paymentSheetViewController.dismiss(animated: true)
+                    resolve(Errors.createError(ErrorType.Timeout, "The payment has timed out."))
+                }
             }
         }
         DispatchQueue.main.async {
@@ -283,6 +285,7 @@ class StripeSdk: RCTEventEmitter, STPBankSelectionViewControllerDelegate, UIAdap
             if let paymentSheetFlowController = self.paymentSheetFlowController {
                 paymentSheetFlowController.presentPaymentOptions(from: findViewControllerPresenter(from: self.paymentSheetViewController!)
                 ) {
+                    self.paymentSheetViewController = nil
                     if let paymentOption = self.paymentSheetFlowController?.paymentOption {
                         let option: NSDictionary = [
                             "label": paymentOption.label,
@@ -296,6 +299,7 @@ class StripeSdk: RCTEventEmitter, STPBankSelectionViewControllerDelegate, UIAdap
             } else if let paymentSheet = self.paymentSheet {
                 paymentSheet.present(from: findViewControllerPresenter(from: self.paymentSheetViewController!)
                 ) { paymentResult in
+                    self.paymentSheetViewController = nil
                     switch paymentResult {
                     case .completed:
                         resolve([])
@@ -307,7 +311,7 @@ class StripeSdk: RCTEventEmitter, STPBankSelectionViewControllerDelegate, UIAdap
                     }
                 }
             } else {
-                resolve(Errors.createError(ErrorType.Failed, "No payment sheet has been initialized yet"))
+                resolve(Errors.createError(ErrorType.Failed, "No payment sheet has been initialized yet. You must call `initPaymentSheet` before `presentPaymentSheet`."))
             }
         }
     }
