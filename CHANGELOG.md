@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## Fixes
+
+- Added an `options` argument to `presentPaymentSheet` which includes a `timeout` property. [#1287](https://github.com/stripe/stripe-react-native/pull/1287)
+
 ## 0.23.3 - 2023-02-07
 
 ## Fixes
