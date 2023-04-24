@@ -1,7 +1,10 @@
 import type { BillingDetails } from '@stripe/stripe-react-native';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, TextInput } from 'react-native';
-import { useConfirmPayment } from '@stripe/stripe-react-native';
+import {
+  useConfirmPayment,
+  useConfirmSetupIntent,
+} from '@stripe/stripe-react-native';
 import Button from '../components/Button';
 import PaymentScreen from '../components/PaymentScreen';
 import { API_URL } from '../Config';
@@ -10,16 +13,17 @@ import { colors } from '../colors';
 export default function PayPalScreen() {
   const [email, setEmail] = useState('');
   const { confirmPayment, loading: loadingPayment } = useConfirmPayment();
+  const { confirmSetupIntent, loading: loadingSetup } = useConfirmSetupIntent();
 
-  const fetchPaymentIntentClientSecret = async () => {
-    const response = await fetch(`${API_URL}/create-payment-intent`, {
+  const fetchClientSecret = async (intentType: 'setup' | 'payment') => {
+    const response = await fetch(`${API_URL}/create-${intentType}-intent`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         email,
-        currency: 'eur',
+        currency: 'gbp',
         payment_method_types: ['paypal'],
       }),
     });
@@ -29,8 +33,9 @@ export default function PayPalScreen() {
   };
 
   const handlePayPress = async () => {
-    const { clientSecret, error: clientSecretError } =
-      await fetchPaymentIntentClientSecret();
+    const { clientSecret, error: clientSecretError } = await fetchClientSecret(
+      'payment'
+    );
 
     if (clientSecretError) {
       Alert.alert(`Error`, clientSecretError);
@@ -62,12 +67,44 @@ export default function PayPalScreen() {
   };
 
   const handleSetupPress = async () => {
-    Alert.alert('Error', `PayPal is not supported through setup intents, yet.`);
-    return;
+    const { clientSecret, error: clientSecretError } = await fetchClientSecret(
+      'setup'
+    );
+
+    if (clientSecretError) {
+      Alert.alert(`Error`, clientSecretError);
+      return;
+    }
+
+    const { error, setupIntent } = await confirmSetupIntent(
+      clientSecret,
+      {
+        paymentMethodType: 'PayPal',
+        paymentMethodData: {
+          mandateData: {
+            customerAcceptance: {
+              online: {
+                ipAddress: '1.1.1.1',
+                userAgent: 'my-agent',
+              },
+            },
+          },
+        },
+      },
+      { setupFutureUsage: 'OffSession' }
+    );
+
+    if (error) {
+      Alert.alert(`Error code: ${error.code}`, error.message);
+      console.log('Setup confirmation error', error.message);
+    } else if (setupIntent) {
+      Alert.alert('Success', `Status: ${setupIntent.status}`);
+      console.log('Success from promise', setupIntent);
+    }
   };
 
   return (
-    <PaymentScreen>
+    <PaymentScreen paymentMethod="paypal">
       <TextInput
         placeholder="E-mail"
         autoCapitalize="none"
@@ -89,6 +126,7 @@ export default function PayPalScreen() {
         onPress={handleSetupPress}
         title="Setup for later"
         accessibilityLabel="Setup for later"
+        loading={loadingSetup}
       />
     </PaymentScreen>
   );

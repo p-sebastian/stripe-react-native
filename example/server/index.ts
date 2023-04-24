@@ -70,6 +70,10 @@ function getKeys(payment_method?: string) {
       publishable_key = process.env.STRIPE_PUBLISHABLE_KEY_WECHAT;
       secret_key = process.env.STRIPE_SECRET_KEY_WECHAT;
       break;
+    case 'paypal':
+      publishable_key = process.env.STRIPE_PUBLISHABLE_KEY_UK;
+      secret_key = process.env.STRIPE_SECRET_KEY_UK;
+      break;
     default:
       publishable_key = process.env.STRIPE_PUBLISHABLE_KEY;
       secret_key = process.env.STRIPE_SECRET_KEY;
@@ -112,7 +116,7 @@ app.post(
     const { secret_key } = getKeys(payment_method_types[0]);
 
     const stripe = new Stripe(secret_key as string, {
-      apiVersion: '2020-08-27',
+      apiVersion: '2022-11-15',
       typescript: true,
     });
 
@@ -172,7 +176,7 @@ app.post(
     const { secret_key } = getKeys();
 
     const stripe = new Stripe(secret_key as string, {
-      apiVersion: '2020-08-27',
+      apiVersion: '2022-11-15',
       typescript: true,
     });
     const customers = await stripe.customers.list({
@@ -250,7 +254,7 @@ app.post(
     const { secret_key } = getKeys();
 
     const stripe = new Stripe(secret_key as string, {
-      apiVersion: '2020-08-27',
+      apiVersion: '2022-11-15',
       typescript: true,
     });
 
@@ -339,7 +343,7 @@ app.post('/create-setup-intent', async (req, res) => {
   const { secret_key } = getKeys(payment_method_types[0]);
 
   const stripe = new Stripe(secret_key as string, {
-    apiVersion: '2020-08-27',
+    apiVersion: '2022-11-15',
     typescript: true,
   });
   const customer = await stripe.customers.create({ email });
@@ -352,8 +356,8 @@ app.post('/create-setup-intent', async (req, res) => {
       customer_acceptance: {
         type: 'online',
         online: {
-          ip_address: '',
-          user_agent: '',
+          ip_address: '1.1.1.1',
+          user_agent: 'test-user-agent',
         },
       },
     },
@@ -387,7 +391,7 @@ app.post(
     const { secret_key } = getKeys();
 
     const stripe = new Stripe(secret_key as string, {
-      apiVersion: '2020-08-27',
+      apiVersion: '2022-11-15',
       typescript: true,
     });
     // console.log('webhook!', req);
@@ -450,7 +454,7 @@ app.post('/charge-card-off-session', async (req, res) => {
   const { secret_key } = getKeys();
 
   const stripe = new Stripe(secret_key as string, {
-    apiVersion: '2020-08-27',
+    apiVersion: '2022-11-15',
     typescript: true,
   });
 
@@ -524,7 +528,7 @@ app.post('/payment-sheet', async (_, res) => {
   const { secret_key } = getKeys();
 
   const stripe = new Stripe(secret_key as string, {
-    apiVersion: '2020-08-27',
+    apiVersion: '2022-11-15',
     typescript: true,
   });
 
@@ -541,7 +545,7 @@ app.post('/payment-sheet', async (_, res) => {
 
   const ephemeralKey = await stripe.ephemeralKeys.create(
     { customer: customer.id },
-    { apiVersion: '2020-08-27' }
+    { apiVersion: '2022-11-15' }
   );
   const paymentIntent = await stripe.paymentIntents.create({
     amount: 5099,
@@ -574,7 +578,7 @@ app.post('/payment-sheet-subscription', async (_, res) => {
   const { secret_key } = getKeys();
 
   const stripe = new Stripe(secret_key as string, {
-    apiVersion: '2020-08-27',
+    apiVersion: '2022-11-15',
     typescript: true,
   });
 
@@ -591,7 +595,7 @@ app.post('/payment-sheet-subscription', async (_, res) => {
 
   const ephemeralKey = await stripe.ephemeralKeys.create(
     { customer: customer.id },
-    { apiVersion: '2020-08-27' }
+    { apiVersion: '2022-11-15' }
   );
   const subscription = await stripe.subscriptions.create({
     customer: customer.id,
@@ -625,38 +629,46 @@ app.post('/ephemeral-key', async (req, res) => {
     typescript: true,
   });
 
-  let key = await stripe.ephemeralKeys.create(
-    { issuing_card: req.body.issuingCardId },
-    { apiVersion: req.body.apiVersion }
-  );
-
-  return res.send(key);
+  try {
+    let key = await stripe.ephemeralKeys.create(
+      { issuing_card: req.body.issuingCardId },
+      { apiVersion: req.body.apiVersion }
+    );
+    return res.send(key);
+  } catch (e) {
+    console.log(e);
+    return res.send({ error: e });
+  }
 });
 
 app.post('/issuing-card-details', async (req, res) => {
   const { secret_key } = getKeys();
 
   const stripe = new Stripe(secret_key as string, {
-    apiVersion: '2020-08-27',
+    apiVersion: '2022-11-15',
     typescript: true,
   });
 
-  let card = await stripe.issuing.cards.retrieve(req.body.id);
+  try {
+    let card = await stripe.issuing.cards.retrieve(req.body.id);
 
-  if (!card) {
-    return res.send({
-      error: 'No card with that ID exists.',
-    });
+    if (!card) {
+      console.log('No card with that ID exists.');
+      return res.send({ error: 'No card with that ID exists.' });
+    } else {
+      return res.send(card);
+    }
+  } catch (e) {
+    console.log(e);
+    return res.send({ error: e });
   }
-
-  return res.send(card);
 });
 
 app.post('/financial-connections-sheet', async (_, res) => {
   const { secret_key } = getKeys();
 
   const stripe = new Stripe(secret_key as string, {
-    apiVersion: '2020-08-27',
+    apiVersion: '2022-11-15',
     typescript: true,
   });
 
